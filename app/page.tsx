@@ -10,13 +10,16 @@ import SensorChart from "@/components/sensor-chart"
 import AIRecommendations from "@/components/ai-recommendations"
 import SerialConnection from "@/components/serial-connection"
 
-// Definir tipos para la API Web Serial
-declare global {
-  interface Navigator {
-    serial: {
-      requestPort: () => Promise<any>;
-    }
-  }
+// Definir tipos para la API Web Serial sin modificar la interfaz Navigator global
+interface SerialPortOptions {
+  baudRate: number;
+}
+
+interface SerialPort {
+  readable: ReadableStream<Uint8Array>;
+  writable: WritableStream<Uint8Array>;
+  open: (options: SerialPortOptions) => Promise<void>;
+  close: () => Promise<void>;
 }
 
 // Definir el tipo para los datos de sensores
@@ -29,7 +32,7 @@ interface SensorDataType {
 
 export default function Dashboard() {
   const [connected, setConnected] = useState(false)
-  const [serialPort, setSerialPort] = useState<any>(null)
+  const [serialPort, setSerialPort] = useState<SerialPort | null>(null)
   const [sensorData, setSensorData] = useState<SensorDataType>({
     temperature: { current: 22.5, history: [] },
     humidity: { current: 45, history: [] },
@@ -66,7 +69,8 @@ export default function Dashboard() {
 
   const handleConnect = async () => {
     try {
-      const port = await navigator.serial.requestPort()
+      // Usar una aserción de tipo en lugar de modificar la interfaz Navigator
+      const port = await (navigator as any).serial.requestPort() as SerialPort
       await port.open({ baudRate: 9600 })
       
       setSerialPort(port)
@@ -127,7 +131,7 @@ export default function Dashboard() {
           title="Calidad del Aire" 
           value={`${sensorData.airQuality.current}`} 
           icon={<Wind className="h-5 w-5" />}
-          status={getSensorStatus(sensorData.airQuality.current, 50, 80)}
+          status={getSensorStatus(sensorData.airQuality.current, 50, 80, false)}
         />
       </div>
 
@@ -190,7 +194,7 @@ export default function Dashboard() {
   )
 }
 
-function getSensorStatus(value: number, min: number, max: number, inverted: boolean = false): 'normal' | 'warning' | 'alert' {
+function getSensorStatus(value: number, min: number, max: number, inverted = false): 'normal' | 'warning' | 'alert' {
   if (inverted) {
     if (value > max) return 'alert'
     if (value > min) return 'warning'
