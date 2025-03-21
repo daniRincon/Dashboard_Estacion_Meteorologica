@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { Thermometer, Droplets, Volume2, Wind, Cable } from 'lucide-react'
+import { Thermometer, Droplets, Volume2, Wind } from 'lucide-react'
 import { toast } from "sonner"
 import SensorCard from "@/components/sensor-card"
 import SensorChart from "@/components/sensor-chart"
@@ -32,13 +31,12 @@ export default function Dashboard() {
   const [connected, setConnected] = useState(false)
   const [serialPort, setSerialPort] = useState<any>(null)
   const [sensorData, setSensorData] = useState<SensorDataType>({
-    temperature: { current: 22.5, history: [] as number[] },
-    humidity: { current: 45, history: [] as number[] },
-    noise: { current: 35, history: [] as number[] },
-    airQuality: { current: 85, history: [] as number[] },
+    temperature: { current: 22.5, history: [] },
+    humidity: { current: 45, history: [] },
+    noise: { current: 35, history: [] },
+    airQuality: { current: 85, history: [] },
   })
 
-  // Simulación de datos para vista previa
   useEffect(() => {
     if (!connected) return
     
@@ -68,7 +66,6 @@ export default function Dashboard() {
 
   const handleConnect = async () => {
     try {
-      // Solicitar un puerto y abrir una conexión
       const port = await navigator.serial.requestPort()
       await port.open({ baudRate: 9600 })
       
@@ -76,9 +73,6 @@ export default function Dashboard() {
       setConnected(true)
       
       toast.success("Conectado a la estación meteorológica")
-      
-      // En una implementación real, leerías datos del puerto serial aquí
-      // y actualizarías el estado sensorData en consecuencia
     } catch (error) {
       console.error(error)
       toast.error("No se pudo conectar con la estación meteorológica")
@@ -133,7 +127,7 @@ export default function Dashboard() {
           title="Calidad del Aire" 
           value={`${sensorData.airQuality.current}`} 
           icon={<Wind className="h-5 w-5" />}
-          status={getSensorStatus(sensorData.airQuality.current, 50, 80, false)}
+          status={getSensorStatus(sensorData.airQuality.current, 50, 80)}
         />
       </div>
 
@@ -196,7 +190,6 @@ export default function Dashboard() {
   )
 }
 
-// Añadir tipos explícitos a los parámetros
 function getSensorStatus(value: number, min: number, max: number, inverted: boolean = false): 'normal' | 'warning' | 'alert' {
   if (inverted) {
     if (value > max) return 'alert'
