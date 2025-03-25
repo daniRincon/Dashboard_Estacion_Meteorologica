@@ -41,31 +41,63 @@ export default function Dashboard() {
   })
 
   useEffect(() => {
-    if (!connected) return
-    
-    const interval = setInterval(() => {
-      setSensorData(prev => ({
-        temperature: { 
-          current: Math.round((prev.temperature.current + (Math.random() * 2 - 1)) * 10) / 10,
-          history: [...prev.temperature.history, prev.temperature.current].slice(-20)
-        },
-        humidity: { 
-          current: Math.min(100, Math.max(0, Math.round(prev.humidity.current + (Math.random() * 4 - 2)))),
-          history: [...prev.humidity.history, prev.humidity.current].slice(-20)
-        },
-        noise: { 
-          current: Math.min(100, Math.max(0, Math.round(prev.noise.current + (Math.random() * 6 - 3)))),
-          history: [...prev.noise.history, prev.noise.current].slice(-20)
-        },
-        airQuality: { 
-          current: Math.min(100, Math.max(0, Math.round(prev.airQuality.current + (Math.random() * 4 - 2)))),
-          history: [...prev.airQuality.history, prev.airQuality.current].slice(-20)
-        },
-      }))
-    }, 2000)
-
-    return () => clearInterval(interval)
-  }, [connected])
+    if (!serialPort || !serialPort.readable) return
+  
+    const reader = serialPort.readable.getReader()
+    const decoder = new TextDecoder()
+  
+    let cancelled = false
+  
+    const readLoop = async () => {
+      try {
+        while (!cancelled) {
+          const { value, done } = await reader.read()
+          if (done || !value) break
+  
+          const text = decoder.decode(value)
+          // Suponiendo que el Arduino envía algo como: "T:22.5;H:45;N:35;A:85"
+          const match = text.match(/T:(\d+(\.\d+)?);H:(\d+);N:(\d+);A:(\d+)/)
+          if (match) {
+            const temp = parseFloat(match[1])
+            const hum = parseInt(match[3])
+            const noise = parseInt(match[4])
+            const air = parseInt(match[5])
+  
+            setSensorData(prev => ({
+              temperature: {
+                current: temp,
+                history: [...prev.temperature.history, temp].slice(-20),
+              },
+              humidity: {
+                current: hum,
+                history: [...prev.humidity.history, hum].slice(-20),
+              },
+              noise: {
+                current: noise,
+                history: [...prev.noise.history, noise].slice(-20),
+              },
+              airQuality: {
+                current: air,
+                history: [...prev.airQuality.history, air].slice(-20),
+              },
+            }))
+          }
+        }
+      } catch (err) {
+        console.error("Error leyendo desde el puerto:", err)
+      } finally {
+        reader.releaseLock()
+      }
+    }
+  
+    readLoop()
+  
+    return () => {
+      cancelled = true
+      reader.cancel().catch(() => {})
+    }
+  }, [serialPort])
+  
 
   const handleConnect = async () => {
     try {
